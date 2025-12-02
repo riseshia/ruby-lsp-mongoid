@@ -283,4 +283,45 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       assert_method_defined("user=", "Address", 2)
     end
   end
+
+  describe "scope DSL" do
+    def assert_singleton_method_defined(method_name, class_name, line)
+      entries = index.resolve_method(method_name, class_name)
+      expect(entries).not_to be_nil, "Expected singleton method '#{method_name}' to be defined on '#{class_name}'"
+      expect(entries.first).to be_a(RubyIndexer::Entry::Method)
+      expect(entries.first.location.start_line).to eq(line)
+    end
+
+    it "indexes scope as singleton method with symbol name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Post
+          scope :published, -> { where(published: true) }
+        end
+      RUBY
+
+      assert_singleton_method_defined("published", "Post::<Class:Post>", 2)
+    end
+
+    it "indexes scope as singleton method with string name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Post
+          scope "recent", -> { order(created_at: :desc) }
+        end
+      RUBY
+
+      assert_singleton_method_defined("recent", "Post::<Class:Post>", 2)
+    end
+
+    it "indexes multiple scopes" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Article
+          scope :draft, -> { where(published: false) }
+          scope :featured, -> { where(featured: true) }
+        end
+      RUBY
+
+      assert_singleton_method_defined("draft", "Article::<Class:Article>", 2)
+      assert_singleton_method_defined("featured", "Article::<Class:Article>", 3)
+    end
+  end
 end

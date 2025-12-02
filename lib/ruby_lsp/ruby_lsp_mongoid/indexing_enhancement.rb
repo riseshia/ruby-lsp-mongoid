@@ -14,6 +14,8 @@ module RubyLsp
           handle_many_association(call_node)
         when :has_one, :belongs_to, :embeds_one
           handle_singular_association(call_node)
+        when :scope
+          handle_scope(call_node)
         end
       end
 
@@ -50,6 +52,16 @@ module RubyLsp
         add_builder_methods(name, loc)
       end
 
+      def handle_scope(call_node)
+        name = extract_name(call_node)
+        return unless name
+
+        owner = @listener.current_owner
+        return unless owner
+
+        add_singleton_method(name.to_s, call_node.location, owner)
+      end
+
       def extract_name(call_node)
         arguments = call_node.arguments&.arguments
         return unless arguments
@@ -79,6 +91,27 @@ module RubyLsp
         @listener.add_method("build_#{name}", location, builder_signatures)
         @listener.add_method("create_#{name}", location, builder_signatures)
         @listener.add_method("create_#{name}!", location, builder_signatures)
+      end
+
+      def add_singleton_method(name, node_location, owner)
+        index = @listener.instance_variable_get(:@index)
+        code_units_cache = @listener.instance_variable_get(:@code_units_cache)
+        uri = @listener.instance_variable_get(:@uri)
+
+        location = RubyIndexer::Location.from_prism_location(node_location, code_units_cache)
+        singleton = index.existing_or_new_singleton_class(owner.name)
+        signatures = [RubyIndexer::Entry::Signature.new([])]
+
+        index.add(RubyIndexer::Entry::Method.new(
+          name,
+          uri,
+          location,
+          location,
+          "",
+          signatures,
+          :public,
+          singleton,
+        ))
       end
 
       def singularize(name)
