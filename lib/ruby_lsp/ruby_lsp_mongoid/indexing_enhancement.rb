@@ -43,7 +43,8 @@ module RubyLsp
         name = extract_name(call_node)
         return unless name
 
-        add_accessor_methods(name, call_node.location)
+        comment = build_association_comment(call_node.name, name, call_node)
+        add_accessor_methods(name, call_node.location, comments: comment)
       end
 
       def handle_many_association(call_node)
@@ -51,11 +52,12 @@ module RubyLsp
         return unless name
 
         loc = call_node.location
+        comment = build_association_comment(call_node.name, name, call_node)
 
-        add_accessor_methods(name, loc)
+        add_accessor_methods(name, loc, comments: comment)
 
         singular_name = singularize(name)
-        add_accessor_methods("#{singular_name}_ids", loc)
+        add_accessor_methods("#{singular_name}_ids", loc, comments: comment)
       end
 
       def handle_singular_association(call_node)
@@ -63,8 +65,9 @@ module RubyLsp
         return unless name
 
         loc = call_node.location
+        comment = build_association_comment(call_node.name, name, call_node)
 
-        add_accessor_methods(name, loc)
+        add_accessor_methods(name, loc, comments: comment)
         add_builder_methods(name, loc)
       end
 
@@ -148,6 +151,28 @@ module RubyLsp
         options << "default: #{default_source}" if default_source
 
         options.any? ? options.join(", ") : nil
+      end
+
+      def build_association_comment(association_type, name, call_node)
+        # Try class_name option first, then infer from association name
+        class_name = extract_option_value(call_node, "class_name")
+        class_name ||= classify(name)
+
+        index = @listener.instance_variable_get(:@index)
+        class_entries = index[class_name]
+
+        if class_entries&.any?
+          uri = class_entries.first.uri
+          "#{association_type}: [#{class_name}](#{uri})"
+        else
+          "#{association_type}: #{class_name}"
+        end
+      end
+
+      def classify(name)
+        # Simple classify: posts -> Post, comments -> Comment
+        singular = singularize(name)
+        singular.to_s.split("_").map(&:capitalize).join
       end
 
       def add_accessor_methods(name, location, comments: nil)
