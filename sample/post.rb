@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "mongoid"
+require_relative "comment"
 
 # Sample Mongoid model demonstrating various DSL features
 class Post
@@ -34,15 +35,6 @@ class Post
 end
 
 # Embedded document example
-class Comment
-  include Mongoid::Document
-
-  field :content, type: String
-  field :author_name, type: String
-
-  embedded_in :post
-end
-
 class AuthorInfo
   include Mongoid::Document
 
