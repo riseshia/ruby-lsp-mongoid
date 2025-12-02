@@ -205,4 +205,82 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       assert_method_defined("category_ids=", "Article", 2)
     end
   end
+
+  describe "embeds_many DSL" do
+    it "indexes embeds_many methods with symbol name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Post
+          embeds_many :comments
+        end
+      RUBY
+
+      assert_method_defined("comments", "Post", 2)
+      assert_method_defined("comments=", "Post", 2)
+    end
+
+    it "indexes embeds_many methods with string name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Article
+          embeds_many "paragraphs"
+        end
+      RUBY
+
+      assert_method_defined("paragraphs", "Article", 2)
+      assert_method_defined("paragraphs=", "Article", 2)
+    end
+  end
+
+  describe "embeds_one DSL" do
+    it "indexes embeds_one methods with symbol name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Post
+          embeds_one :author_info
+        end
+      RUBY
+
+      assert_method_defined("author_info", "Post", 2)
+      assert_method_defined("author_info=", "Post", 2)
+      assert_method_defined("build_author_info", "Post", 2)
+      assert_method_defined("create_author_info", "Post", 2)
+      assert_method_defined("create_author_info!", "Post", 2)
+    end
+
+    it "indexes embeds_one methods with string name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class User
+          embeds_one "address"
+        end
+      RUBY
+
+      assert_method_defined("address", "User", 2)
+      assert_method_defined("address=", "User", 2)
+      assert_method_defined("build_address", "User", 2)
+      assert_method_defined("create_address", "User", 2)
+      assert_method_defined("create_address!", "User", 2)
+    end
+  end
+
+  describe "embedded_in DSL" do
+    it "indexes embedded_in methods with symbol name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Comment
+          embedded_in :post
+        end
+      RUBY
+
+      assert_method_defined("post", "Comment", 2)
+      assert_method_defined("post=", "Comment", 2)
+    end
+
+    it "indexes embedded_in methods with string name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Address
+          embedded_in "user"
+        end
+      RUBY
+
+      assert_method_defined("user", "Address", 2)
+      assert_method_defined("user=", "Address", 2)
+    end
+  end
 end

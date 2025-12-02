@@ -8,12 +8,12 @@ module RubyLsp
         return unless owner
 
         case call_node.name
-        when :field
-          handle_field(call_node)
+        when :field, :embeds_many, :embedded_in
+          handle_accessor_dsl(call_node)
         when :has_many, :has_and_belongs_to_many
-          handle_has_many(call_node)
-        when :has_one, :belongs_to
-          handle_has_one(call_node)
+          handle_many_association(call_node)
+        when :has_one, :belongs_to, :embeds_one
+          handle_singular_association(call_node)
         end
       end
 
@@ -21,14 +21,14 @@ module RubyLsp
 
       private
 
-      def handle_field(call_node)
+      def handle_accessor_dsl(call_node)
         name = extract_name(call_node)
         return unless name
 
         add_accessor_methods(name, call_node.location)
       end
 
-      def handle_has_many(call_node)
+      def handle_many_association(call_node)
         name = extract_name(call_node)
         return unless name
 
@@ -40,7 +40,7 @@ module RubyLsp
         add_accessor_methods("#{singular_name}_ids", loc)
       end
 
-      def handle_has_one(call_node)
+      def handle_singular_association(call_node)
         name = extract_name(call_node)
         return unless name
 
