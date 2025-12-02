@@ -71,4 +71,50 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       assert_method_defined("active=", "User", 3)
     end
   end
+
+  describe "has_many DSL" do
+    it "indexes has_many association methods with symbol name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class User
+          has_many :posts
+        end
+      RUBY
+
+      assert_method_defined("posts", "User", 2)
+      assert_method_defined("posts=", "User", 2)
+      assert_method_defined("post_ids", "User", 2)
+      assert_method_defined("post_ids=", "User", 2)
+    end
+
+    it "indexes has_many association methods with string name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Author
+          has_many "articles"
+        end
+      RUBY
+
+      assert_method_defined("articles", "Author", 2)
+      assert_method_defined("articles=", "Author", 2)
+      assert_method_defined("article_ids", "Author", 2)
+      assert_method_defined("article_ids=", "Author", 2)
+    end
+
+    it "indexes multiple has_many associations" do
+      index.index_single(indexable_path, <<~RUBY)
+        class User
+          has_many :posts
+          has_many :comments
+        end
+      RUBY
+
+      assert_method_defined("posts", "User", 2)
+      assert_method_defined("posts=", "User", 2)
+      assert_method_defined("post_ids", "User", 2)
+      assert_method_defined("post_ids=", "User", 2)
+      assert_method_defined("comments", "User", 3)
+      assert_method_defined("comments=", "User", 3)
+      assert_method_defined("comment_ids", "User", 3)
+      assert_method_defined("comment_ids=", "User", 3)
+    end
+  end
 end

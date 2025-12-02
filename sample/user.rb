@@ -20,6 +20,9 @@ class User
   field :birthday, type: Date
   field :last_login_at, type: Time
 
+  # Associations
+  has_many :posts
+
   # Validations
   validates :name, presence: true
   validates :email, presence: true, uniqueness: true
