@@ -30,11 +30,13 @@ module RubyLsp
         return unless name
 
         loc = call_node.location
-        add_accessor_methods(name, loc)
+        type_comment = extract_type_comment(call_node)
+
+        add_accessor_methods(name, loc, comments: type_comment)
 
         # Handle as: option for field alias
         alias_name = extract_as_option(call_node)
-        add_accessor_methods(alias_name, loc) if alias_name
+        add_accessor_methods(alias_name, loc, comments: type_comment) if alias_name
       end
 
       def handle_accessor_dsl(call_node)
@@ -115,14 +117,40 @@ module RubyLsp
         end
       end
 
-      def add_accessor_methods(name, location)
+      def extract_type_comment(call_node)
+        arguments = call_node.arguments&.arguments
+        return unless arguments
+
+        keyword_hash = arguments.find { |arg| arg.is_a?(Prism::KeywordHashNode) }
+        return unless keyword_hash
+
+        type_element = keyword_hash.elements.find do |element|
+          element.is_a?(Prism::AssocNode) &&
+            element.key.is_a?(Prism::SymbolNode) &&
+            element.key.value == "type"
+        end
+
+        return unless type_element
+
+        type_value = type_element.value
+        type_name = case type_value
+        when Prism::ConstantReadNode
+          type_value.name.to_s
+        when Prism::ConstantPathNode
+          type_value.full_name
+        end
+
+        "Mongoid field type: #{type_name}" if type_name
+      end
+
+      def add_accessor_methods(name, location, comments: nil)
         reader_signatures = [RubyIndexer::Entry::Signature.new([])]
-        @listener.add_method(name.to_s, location, reader_signatures)
+        @listener.add_method(name.to_s, location, reader_signatures, comments: comments)
 
         writer_signatures = [
           RubyIndexer::Entry::Signature.new([RubyIndexer::Entry::RequiredParameter.new(name: :value)]),
         ]
-        @listener.add_method("#{name}=", location, writer_signatures)
+        @listener.add_method("#{name}=", location, writer_signatures, comments: comments)
       end
 
       def add_builder_methods(name, location)
