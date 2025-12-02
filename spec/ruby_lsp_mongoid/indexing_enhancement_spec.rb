@@ -148,10 +148,10 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       RUBY
 
       posts_entries = index.resolve_method("posts", "User")
-      expect(posts_entries.first.comments).to eq("has_many: [Post](#{indexable_path})")
+      expect(posts_entries.first.comments).to eq("has_many: [Post](#{indexable_path}#L1)")
 
       replies_entries = index.resolve_method("replies", "User")
-      expect(replies_entries.first.comments).to eq("has_many: [Comment](#{indexable_path})")
+      expect(replies_entries.first.comments).to eq("has_many: [Comment](#{indexable_path}#L2)")
     end
 
     it "shows class name without link when class is not found" do
@@ -237,10 +237,10 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       RUBY
 
       profile_entries = index.resolve_method("profile", "User")
-      expect(profile_entries.first.comments).to eq("has_one: [Profile](#{indexable_path})")
+      expect(profile_entries.first.comments).to eq("has_one: [Profile](#{indexable_path}#L1)")
 
       main_account_entries = index.resolve_method("main_account", "User")
-      expect(main_account_entries.first.comments).to eq("has_one: [Account](#{indexable_path})")
+      expect(main_account_entries.first.comments).to eq("has_one: [Account](#{indexable_path}#L2)")
     end
   end
 
@@ -284,10 +284,10 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       RUBY
 
       author_entries = index.resolve_method("author", "Post")
-      expect(author_entries.first.comments).to eq("belongs_to: [Author](#{indexable_path})")
+      expect(author_entries.first.comments).to eq("belongs_to: [Author](#{indexable_path}#L1)")
 
       creator_entries = index.resolve_method("creator", "Post")
-      expect(creator_entries.first.comments).to eq("belongs_to: [User](#{indexable_path})")
+      expect(creator_entries.first.comments).to eq("belongs_to: [User](#{indexable_path}#L2)")
     end
   end
 
@@ -329,10 +329,10 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       RUBY
 
       tags_entries = index.resolve_method("tags", "Post")
-      expect(tags_entries.first.comments).to eq("has_and_belongs_to_many: [Tag](#{indexable_path})")
+      expect(tags_entries.first.comments).to eq("has_and_belongs_to_many: [Tag](#{indexable_path}#L1)")
 
       topic_entries = index.resolve_method("topic_categories", "Post")
-      expect(topic_entries.first.comments).to eq("has_and_belongs_to_many: [Category](#{indexable_path})")
+      expect(topic_entries.first.comments).to eq("has_and_belongs_to_many: [Category](#{indexable_path}#L2)")
     end
   end
 
@@ -370,10 +370,10 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       RUBY
 
       comments_entries = index.resolve_method("comments", "Post")
-      expect(comments_entries.first.comments).to eq("embeds_many: [Comment](#{indexable_path})")
+      expect(comments_entries.first.comments).to eq("embeds_many: [Comment](#{indexable_path}#L1)")
 
       sections_entries = index.resolve_method("sections", "Post")
-      expect(sections_entries.first.comments).to eq("embeds_many: [Paragraph](#{indexable_path})")
+      expect(sections_entries.first.comments).to eq("embeds_many: [Paragraph](#{indexable_path}#L2)")
     end
   end
 
@@ -417,10 +417,10 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       RUBY
 
       author_info_entries = index.resolve_method("author_info", "Post")
-      expect(author_info_entries.first.comments).to eq("embeds_one: [AuthorInfo](#{indexable_path})")
+      expect(author_info_entries.first.comments).to eq("embeds_one: [AuthorInfo](#{indexable_path}#L1)")
 
       details_entries = index.resolve_method("details", "Post")
-      expect(details_entries.first.comments).to eq("embeds_one: [Profile](#{indexable_path})")
+      expect(details_entries.first.comments).to eq("embeds_one: [Profile](#{indexable_path}#L2)")
     end
   end
 
@@ -458,10 +458,10 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       RUBY
 
       post_entries = index.resolve_method("post", "Comment")
-      expect(post_entries.first.comments).to eq("embedded_in: [Post](#{indexable_path})")
+      expect(post_entries.first.comments).to eq("embedded_in: [Post](#{indexable_path}#L1)")
 
       article_entries = index.resolve_method("article", "Comment")
-      expect(article_entries.first.comments).to eq("embedded_in: [Article](#{indexable_path})")
+      expect(article_entries.first.comments).to eq("embedded_in: [Article](#{indexable_path}#L2)")
     end
   end
 

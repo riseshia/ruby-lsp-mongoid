@@ -162,8 +162,9 @@ module RubyLsp
         class_entries = index[class_name]
 
         if class_entries&.any?
-          uri = class_entries.first.uri
-          "#{association_type}: [#{class_name}](#{uri})"
+          entry = class_entries.first
+          line = entry.location.start_line
+          "#{association_type}: [#{class_name}](#{entry.uri}#L#{line})"
         else
           "#{association_type}: #{class_name}"
         end
