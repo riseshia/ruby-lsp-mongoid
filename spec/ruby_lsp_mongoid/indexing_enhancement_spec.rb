@@ -71,24 +71,32 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       assert_method_defined("active=", "User", 3)
     end
 
-    it "stores type information in method comments for hover" do
+    it "stores field options in method comments for hover" do
       index.index_single(indexable_path, <<~RUBY)
         class User
           field :age, type: Integer
-          field :score, type: Float
-          field :name
+          field :active, type: Boolean, default: false
+          field :name, as: :n
+          field :score, type: Float, as: :s, default: 0.0
+          field :data
         end
       RUBY
 
       age_entries = index.resolve_method("age", "User")
-      expect(age_entries.first.comments).to eq("Mongoid field type: Integer")
+      expect(age_entries.first.comments).to eq("type: Integer")
+
+      active_entries = index.resolve_method("active", "User")
+      expect(active_entries.first.comments).to eq("type: Boolean, default: false")
+
+      name_entries = index.resolve_method("name", "User")
+      expect(name_entries.first.comments).to eq("as: n")
 
       score_entries = index.resolve_method("score", "User")
-      expect(score_entries.first.comments).to eq("Mongoid field type: Float")
+      expect(score_entries.first.comments).to eq("type: Float, as: s, default: 0.0")
 
-      # Field without type should have empty comments
-      name_entries = index.resolve_method("name", "User")
-      expect(name_entries.first.comments).to eq("")
+      # Field without options should have nil comments
+      data_entries = index.resolve_method("data", "User")
+      expect(data_entries.first.comments).to eq("")
     end
 
     it "indexes field with as: option for alias" do

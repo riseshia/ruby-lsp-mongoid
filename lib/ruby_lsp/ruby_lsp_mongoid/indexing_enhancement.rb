@@ -30,13 +30,13 @@ module RubyLsp
         return unless name
 
         loc = call_node.location
-        type_comment = extract_type_comment(call_node)
+        comment = build_field_options_comment(call_node)
 
-        add_accessor_methods(name, loc, comments: type_comment)
+        add_accessor_methods(name, loc, comments: comment)
 
         # Handle as: option for field alias
-        alias_name = extract_as_option(call_node)
-        add_accessor_methods(alias_name, loc, comments: type_comment) if alias_name
+        alias_name = extract_option_value(call_node, "as")
+        add_accessor_methods(alias_name, loc, comments: comment) if alias_name
       end
 
       def handle_accessor_dsl(call_node)
@@ -92,55 +92,62 @@ module RubyLsp
         end
       end
 
-      def extract_as_option(call_node)
+      def extract_option_value(call_node, key)
         arguments = call_node.arguments&.arguments
         return unless arguments
 
-        # Find keyword hash in arguments
         keyword_hash = arguments.find { |arg| arg.is_a?(Prism::KeywordHashNode) }
         return unless keyword_hash
 
-        # Look for as: key
-        as_element = keyword_hash.elements.find do |element|
-          element.is_a?(Prism::AssocNode) &&
-            element.key.is_a?(Prism::SymbolNode) &&
-            element.key.value == "as"
+        element = keyword_hash.elements.find do |el|
+          el.is_a?(Prism::AssocNode) &&
+            el.key.is_a?(Prism::SymbolNode) &&
+            el.key.value == key
         end
 
-        return unless as_element
+        return unless element
 
-        case as_element.value
+        case element.value
         when Prism::SymbolNode
-          as_element.value.value
+          element.value.value
         when Prism::StringNode
-          as_element.value.content
+          element.value.content
+        when Prism::ConstantReadNode
+          element.value.name.to_s
+        when Prism::ConstantPathNode
+          element.value.full_name
         end
       end
 
-      def extract_type_comment(call_node)
+      def extract_option_source(call_node, key)
         arguments = call_node.arguments&.arguments
         return unless arguments
 
         keyword_hash = arguments.find { |arg| arg.is_a?(Prism::KeywordHashNode) }
         return unless keyword_hash
 
-        type_element = keyword_hash.elements.find do |element|
-          element.is_a?(Prism::AssocNode) &&
-            element.key.is_a?(Prism::SymbolNode) &&
-            element.key.value == "type"
+        element = keyword_hash.elements.find do |el|
+          el.is_a?(Prism::AssocNode) &&
+            el.key.is_a?(Prism::SymbolNode) &&
+            el.key.value == key
         end
 
-        return unless type_element
+        element&.value&.slice
+      end
 
-        type_value = type_element.value
-        type_name = case type_value
-        when Prism::ConstantReadNode
-          type_value.name.to_s
-        when Prism::ConstantPathNode
-          type_value.full_name
-        end
+      def build_field_options_comment(call_node)
+        options = []
 
-        "Mongoid field type: #{type_name}" if type_name
+        type_value = extract_option_value(call_node, "type")
+        options << "type: #{type_value}" if type_value
+
+        as_value = extract_option_value(call_node, "as")
+        options << "as: #{as_value}" if as_value
+
+        default_source = extract_option_source(call_node, "default")
+        options << "default: #{default_source}" if default_source
+
+        options.any? ? options.join(", ") : nil
       end
 
       def add_accessor_methods(name, location, comments: nil)
