@@ -70,6 +70,29 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       assert_method_defined("active", "User", 3)
       assert_method_defined("active=", "User", 3)
     end
+
+    it "indexes field with as: option for alias" do
+      index.index_single(indexable_path, <<~RUBY)
+        class User
+          field :name, as: :n
+          field :email_address, type: String, as: :email
+        end
+      RUBY
+
+      # Original name
+      assert_method_defined("name", "User", 2)
+      assert_method_defined("name=", "User", 2)
+      # Alias
+      assert_method_defined("n", "User", 2)
+      assert_method_defined("n=", "User", 2)
+
+      # Original name
+      assert_method_defined("email_address", "User", 3)
+      assert_method_defined("email_address=", "User", 3)
+      # Alias
+      assert_method_defined("email", "User", 3)
+      assert_method_defined("email=", "User", 3)
+    end
   end
 
   describe "has_many DSL" do

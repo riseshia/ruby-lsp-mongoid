@@ -8,7 +8,9 @@ module RubyLsp
         return unless owner
 
         case call_node.name
-        when :field, :embeds_many, :embedded_in
+        when :field
+          handle_field(call_node)
+        when :embeds_many, :embedded_in
           handle_accessor_dsl(call_node)
         when :has_many, :has_and_belongs_to_many
           handle_many_association(call_node)
@@ -22,6 +24,18 @@ module RubyLsp
       def on_call_node_leave(call_node); end
 
       private
+
+      def handle_field(call_node)
+        name = extract_name(call_node)
+        return unless name
+
+        loc = call_node.location
+        add_accessor_methods(name, loc)
+
+        # Handle as: option for field alias
+        alias_name = extract_as_option(call_node)
+        add_accessor_methods(alias_name, loc) if alias_name
+      end
 
       def handle_accessor_dsl(call_node)
         name = extract_name(call_node)
@@ -73,6 +87,31 @@ module RubyLsp
           name_arg.value
         when Prism::StringNode
           name_arg.content
+        end
+      end
+
+      def extract_as_option(call_node)
+        arguments = call_node.arguments&.arguments
+        return unless arguments
+
+        # Find keyword hash in arguments
+        keyword_hash = arguments.find { |arg| arg.is_a?(Prism::KeywordHashNode) }
+        return unless keyword_hash
+
+        # Look for as: key
+        as_element = keyword_hash.elements.find do |element|
+          element.is_a?(Prism::AssocNode) &&
+            element.key.is_a?(Prism::SymbolNode) &&
+            element.key.value == "as"
+        end
+
+        return unless as_element
+
+        case as_element.value
+        when Prism::SymbolNode
+          as_element.value.value
+        when Prism::StringNode
+          as_element.value.content
         end
       end
 

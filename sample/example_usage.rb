@@ -71,7 +71,6 @@ post.slug = "hello-world"
 post.published = true
 post.view_count = 100
 post.published_at = DateTime.now
-
 puts post.title
 puts post.body
 puts post.slug
