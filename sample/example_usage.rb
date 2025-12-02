@@ -59,7 +59,7 @@ puts user.profile
 user.build_profile
 user.create_profile
 user.create_profile!
-
+user.posts
 # ---
 
 post = Post.new
