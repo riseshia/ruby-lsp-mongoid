@@ -53,26 +53,18 @@ This project follows strict Test-Driven Development (TDD) practices based on Ken
    ```bash
    bundle exec rspec
    ```
-3. **Check RuboCop:**
-   ```bash
-   bundle exec rubocop
-   ```
 
 **Pre-Commit Checklist:**
 
-1. **Run linter on changed files FIRST** - Fix violations before committing
-   ```bash
-   bundle exec rubocop <changed_files>
-   ```
-2. **Run all tests** - Ensure nothing breaks
+1. **Run all tests** - Ensure nothing breaks
    ```bash
    bundle exec rspec
    ```
-3. **Check for untracked files** - Add relevant new files
+2. **Check for untracked files** - Add relevant new files
    ```bash
    git status
    ```
-4. **Make ONE atomic commit** - Group all related changes together (code + linting + new files)
+3. **Make ONE atomic commit** - Group all related changes together (code + new files)
 
 ## Commit Strategy
 
@@ -85,13 +77,11 @@ This project follows strict Test-Driven Development (TDD) practices based on Ken
 "Add field DSL indexing support"
 - Implement field declaration parsing
 - Register generated accessor methods
-- Fix RuboCop violations
 - Add test cases
 ```
 
 ❌ **Bad** - Multiple commits:
 ```
 "Add field DSL parsing"
-"Fix rubocop violations"
 "Add tests"
 ```

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "ruby/lsp/mongoid"
+require "ruby_lsp/ruby_lsp_mongoid"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

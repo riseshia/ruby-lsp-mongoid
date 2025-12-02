@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require_relative "lib/ruby/lsp/mongoid/version"
+require_relative "lib/ruby_lsp_mongoid/version"
 
 Gem::Specification.new do |spec|
   spec.name = "ruby-lsp-mongoid"
-  spec.version = Ruby::Lsp::Mongoid::VERSION
+  spec.version = RubyLsp::Mongoid::VERSION
   spec.authors = ["Shia"]
   spec.email = ["rise.shia@gmail.com"]
 
