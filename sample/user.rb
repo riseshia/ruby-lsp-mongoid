@@ -22,6 +22,7 @@ class User
 
   # Associations
   has_many :posts
+  has_one :profile
 
   # Validations
   validates :name, presence: true

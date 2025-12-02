@@ -10,8 +10,10 @@ module RubyLsp
         case call_node.name
         when :field
           handle_field(call_node)
-        when :has_many
+        when :has_many, :has_and_belongs_to_many
           handle_has_many(call_node)
+        when :has_one, :belongs_to
+          handle_has_one(call_node)
         end
       end
 
@@ -38,6 +40,16 @@ module RubyLsp
         add_accessor_methods("#{singular_name}_ids", loc)
       end
 
+      def handle_has_one(call_node)
+        name = extract_name(call_node)
+        return unless name
+
+        loc = call_node.location
+
+        add_accessor_methods(name, loc)
+        add_builder_methods(name, loc)
+      end
+
       def extract_name(call_node)
         arguments = call_node.arguments&.arguments
         return unless arguments
@@ -60,6 +72,13 @@ module RubyLsp
           RubyIndexer::Entry::Signature.new([RubyIndexer::Entry::RequiredParameter.new(name: :value)]),
         ]
         @listener.add_method("#{name}=", location, writer_signatures)
+      end
+
+      def add_builder_methods(name, location)
+        builder_signatures = [RubyIndexer::Entry::Signature.new([])]
+        @listener.add_method("build_#{name}", location, builder_signatures)
+        @listener.add_method("create_#{name}", location, builder_signatures)
+        @listener.add_method("create_#{name}!", location, builder_signatures)
       end
 
       def singularize(name)

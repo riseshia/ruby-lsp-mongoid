@@ -117,4 +117,92 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       assert_method_defined("comment_ids=", "User", 3)
     end
   end
+
+  describe "has_one DSL" do
+    it "indexes has_one association methods with symbol name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class User
+          has_one :profile
+        end
+      RUBY
+
+      assert_method_defined("profile", "User", 2)
+      assert_method_defined("profile=", "User", 2)
+      assert_method_defined("build_profile", "User", 2)
+      assert_method_defined("create_profile", "User", 2)
+      assert_method_defined("create_profile!", "User", 2)
+    end
+
+    it "indexes has_one association methods with string name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class User
+          has_one "account"
+        end
+      RUBY
+
+      assert_method_defined("account", "User", 2)
+      assert_method_defined("account=", "User", 2)
+      assert_method_defined("build_account", "User", 2)
+      assert_method_defined("create_account", "User", 2)
+      assert_method_defined("create_account!", "User", 2)
+    end
+  end
+
+  describe "belongs_to DSL" do
+    it "indexes belongs_to association methods with symbol name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Post
+          belongs_to :author
+        end
+      RUBY
+
+      assert_method_defined("author", "Post", 2)
+      assert_method_defined("author=", "Post", 2)
+      assert_method_defined("build_author", "Post", 2)
+      assert_method_defined("create_author", "Post", 2)
+      assert_method_defined("create_author!", "Post", 2)
+    end
+
+    it "indexes belongs_to association methods with string name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Comment
+          belongs_to "post"
+        end
+      RUBY
+
+      assert_method_defined("post", "Comment", 2)
+      assert_method_defined("post=", "Comment", 2)
+      assert_method_defined("build_post", "Comment", 2)
+      assert_method_defined("create_post", "Comment", 2)
+      assert_method_defined("create_post!", "Comment", 2)
+    end
+  end
+
+  describe "has_and_belongs_to_many DSL" do
+    it "indexes has_and_belongs_to_many association methods with symbol name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Post
+          has_and_belongs_to_many :tags
+        end
+      RUBY
+
+      assert_method_defined("tags", "Post", 2)
+      assert_method_defined("tags=", "Post", 2)
+      assert_method_defined("tag_ids", "Post", 2)
+      assert_method_defined("tag_ids=", "Post", 2)
+    end
+
+    it "indexes has_and_belongs_to_many association methods with string name" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Article
+          has_and_belongs_to_many "categories"
+        end
+      RUBY
+
+      assert_method_defined("categories", "Article", 2)
+      assert_method_defined("categories=", "Article", 2)
+      assert_method_defined("category_ids", "Article", 2)
+      assert_method_defined("category_ids=", "Article", 2)
+    end
+  end
 end
