@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.1.1] - 2025-12-08
+
 ### Added
 
 - Auto-index `_id` and `id` accessor methods for all Mongoid models that use any DSL (field, associations, scope)
