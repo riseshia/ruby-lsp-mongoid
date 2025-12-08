@@ -13,6 +13,8 @@ module RubyLsp
         return unless owner
 
         case call_node.name
+        when :include
+          handle_include(call_node)
         when :field
           handle_field(call_node)
         when :embeds_many, :embedded_in
@@ -29,6 +31,53 @@ module RubyLsp
       def on_call_node_leave(call_node); end
 
       private
+
+      # Core instance methods automatically added by Mongoid::Document
+      CORE_INSTANCE_METHODS = %w[
+        save save! update update! destroy delete upsert reload
+        new_record? persisted? valid? changed?
+        attributes attributes= assign_attributes read_attribute write_attribute changes errors
+        to_key to_param model_name inspect
+      ].freeze
+
+      # Class methods automatically added by Mongoid::Document
+      CORE_CLASS_METHODS = %w[
+        all where find find_by find_by! first last count exists? distinct
+        create create! new build
+        update_all delete_all destroy_all
+        collection database
+      ].freeze
+
+      def handle_include(call_node)
+        arguments = call_node.arguments&.arguments
+        return unless arguments
+
+        # Check if including Mongoid::Document
+        first_arg = arguments.first
+        module_name = case first_arg
+                      when Prism::ConstantReadNode
+                        first_arg.name.to_s
+                      when Prism::ConstantPathNode
+                        first_arg.full_name
+                      end
+
+        return unless module_name == "Mongoid::Document"
+
+        owner = @listener.current_owner
+        return unless owner
+
+        loc = call_node.location
+
+        # Add core instance methods
+        CORE_INSTANCE_METHODS.each do |method_name|
+          add_core_method(method_name, loc)
+        end
+
+        # Add core class methods
+        CORE_CLASS_METHODS.each do |method_name|
+          add_singleton_method(method_name, loc, owner)
+        end
+      end
 
       def handle_field(call_node)
         name = extract_name(call_node)
@@ -173,6 +222,11 @@ module RubyLsp
           RubyIndexer::Entry::Signature.new([RubyIndexer::Entry::RequiredParameter.new(name: :value)]),
         ]
         @listener.add_method("#{name}=", location, writer_signatures, comments: comments)
+      end
+
+      def add_core_method(name, location)
+        signatures = [RubyIndexer::Entry::Signature.new([])]
+        @listener.add_method(name.to_s, location, signatures)
       end
 
       def add_builder_methods(name, location)
