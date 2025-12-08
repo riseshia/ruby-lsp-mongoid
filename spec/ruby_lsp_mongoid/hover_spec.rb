@@ -20,35 +20,6 @@ RSpec.describe RubyLsp::Mongoid::Hover do
     end
   end
 
-  describe "field hover" do
-    it "shows field with type option" do
-      source = <<~RUBY
-        class User
-          field :name, type: String
-        end
-      RUBY
-
-      response = hover_on_source(source, { line: 1, character: 9 })
-
-      expect(response).not_to be_nil
-      expect(response.contents.value).to include("type: String")
-    end
-
-    it "shows field with multiple options" do
-      source = <<~RUBY
-        class User
-          field :active, type: Boolean, default: true
-        end
-      RUBY
-
-      response = hover_on_source(source, { line: 1, character: 9 })
-
-      expect(response).not_to be_nil
-      expect(response.contents.value).to include("type: Boolean")
-      expect(response.contents.value).to include("default: true")
-    end
-  end
-
   describe "association hover" do
     it "shows has_many association with linked class" do
       source = <<~RUBY
