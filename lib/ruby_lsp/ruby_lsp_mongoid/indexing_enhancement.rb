@@ -3,6 +3,11 @@
 module RubyLsp
   module Mongoid
     class IndexingEnhancement < RubyIndexer::Enhancement
+      def initialize(listener)
+        super
+        @id_indexed_owners = Set.new
+      end
+
       def on_call_node_enter(call_node)
         owner = @listener.current_owner
         return unless owner
@@ -32,6 +37,8 @@ module RubyLsp
         loc = call_node.location
         comment = build_field_options_comment(call_node)
 
+        ensure_id_field_indexed(loc)
+
         add_accessor_methods(name, loc, comments: comment)
 
         # Handle as: option for field alias
@@ -43,7 +50,10 @@ module RubyLsp
         name = extract_name(call_node)
         return unless name
 
-        add_accessor_methods(name, call_node.location)
+        loc = call_node.location
+        ensure_id_field_indexed(loc)
+
+        add_accessor_methods(name, loc)
       end
 
       def handle_many_association(call_node)
@@ -51,6 +61,7 @@ module RubyLsp
         return unless name
 
         loc = call_node.location
+        ensure_id_field_indexed(loc)
 
         add_accessor_methods(name, loc)
 
@@ -63,6 +74,7 @@ module RubyLsp
         return unless name
 
         loc = call_node.location
+        ensure_id_field_indexed(loc)
 
         add_accessor_methods(name, loc)
         add_builder_methods(name, loc)
@@ -75,7 +87,10 @@ module RubyLsp
         owner = @listener.current_owner
         return unless owner
 
-        add_singleton_method(name.to_s, call_node.location, owner)
+        loc = call_node.location
+        ensure_id_field_indexed(loc)
+
+        add_singleton_method(name.to_s, loc, owner)
       end
 
       def extract_name(call_node)
@@ -197,6 +212,18 @@ module RubyLsp
         else
           name_str
         end
+      end
+
+      def ensure_id_field_indexed(location)
+        owner = @listener.current_owner
+        return unless owner
+        return if @id_indexed_owners.include?(owner.name)
+
+        @id_indexed_owners.add(owner.name)
+
+        # Add _id and id (alias) accessor methods
+        add_accessor_methods("_id", location)
+        add_accessor_methods("id", location)
       end
     end
   end
