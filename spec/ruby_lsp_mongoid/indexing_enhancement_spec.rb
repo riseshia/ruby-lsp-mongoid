@@ -574,5 +574,48 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       entries = index.resolve_method("save", "MyClass")
       expect(entries).to be_nil
     end
+
+    it "indexes core methods when including ApplicationDocument" do
+      index.index_single(indexable_path, <<~RUBY)
+        class User
+          include ApplicationDocument
+        end
+      RUBY
+
+      # Core instance methods
+      assert_method_defined("save", "User", 2)
+      assert_method_defined("valid?", "User", 2)
+      assert_method_defined("reload", "User", 2)
+
+      # Core class methods
+      assert_singleton_method_defined("all", "User::<Class:User>", 2)
+      assert_singleton_method_defined("where", "User::<Class:User>", 2)
+      assert_singleton_method_defined("create", "User::<Class:User>", 2)
+    end
+
+    it "indexes core methods for ApplicationDocument with DSL methods" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Post
+          include ApplicationDocument
+          field :title
+          scope :published, -> { where(published: true) }
+        end
+      RUBY
+
+      # Core instance methods from ApplicationDocument
+      assert_method_defined("save", "Post", 2)
+      assert_method_defined("update", "Post", 2)
+
+      # DSL field methods
+      assert_method_defined("title", "Post", 3)
+      assert_method_defined("title=", "Post", 3)
+
+      # Core class methods from ApplicationDocument
+      assert_singleton_method_defined("find", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("create", "Post::<Class:Post>", 2)
+
+      # DSL scope methods
+      assert_singleton_method_defined("published", "Post::<Class:Post>", 4)
+    end
   end
 end

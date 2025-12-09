@@ -52,7 +52,7 @@ module RubyLsp
         arguments = call_node.arguments&.arguments
         return unless arguments
 
-        # Check if including Mongoid::Document
+        # Check if including Mongoid::Document or ApplicationDocument
         first_arg = arguments.first
         module_name = case first_arg
                       when Prism::ConstantReadNode
@@ -61,7 +61,8 @@ module RubyLsp
                         first_arg.full_name
                       end
 
-        return unless module_name == "Mongoid::Document"
+        # Support both Mongoid::Document and ApplicationDocument (common Rails pattern)
+        return unless module_name == "Mongoid::Document" || module_name == "ApplicationDocument"
 
         owner = @listener.current_owner
         return unless owner
