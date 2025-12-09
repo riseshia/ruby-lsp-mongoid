@@ -43,10 +43,21 @@ module RubyLsp
         return unless entries&.any?
 
         entry = entries.first
-        comments = entry.comments
-        return if comments.nil? || comments.empty?
 
-        @response_builder.push(comments, category: :documentation)
+        # Build hover content with signature and options
+        content_parts = []
+
+        # Add method signature
+        signature = format_signature(name.to_s, entry)
+        content_parts << signature if signature
+
+        # Add field options from comments
+        comments = entry.comments
+        content_parts << comments if comments && !comments.empty?
+
+        return if content_parts.empty?
+
+        @response_builder.push(content_parts.join("\n\n"), category: :documentation)
       end
 
       def handle_association(node)
@@ -127,6 +138,37 @@ module RubyLsp
         end
 
         @response_builder.push(content, category: :documentation)
+      end
+
+      def format_signature(method_name, entry)
+        return nil unless entry.respond_to?(:signatures) && entry.signatures.any?
+
+        sig = entry.signatures.first
+        return nil if sig.parameters.empty?
+
+        params = sig.parameters.map { |param| format_parameter(param) }.join(", ")
+        "```ruby\ndef #{method_name}(#{params})\n```"
+      end
+
+      def format_parameter(param)
+        case param
+        when RubyIndexer::Entry::RequiredParameter
+          param.name.to_s
+        when RubyIndexer::Entry::OptionalParameter
+          "#{param.name} = nil"
+        when RubyIndexer::Entry::KeywordParameter
+          "#{param.name}:"
+        when RubyIndexer::Entry::OptionalKeywordParameter
+          "#{param.name}: nil"
+        when RubyIndexer::Entry::RestParameter
+          "*#{param.name}"
+        when RubyIndexer::Entry::KeywordRestParameter
+          "**#{param.name}"
+        when RubyIndexer::Entry::BlockParameter
+          "&#{param.name}"
+        else
+          param.name.to_s
+        end
       end
     end
   end

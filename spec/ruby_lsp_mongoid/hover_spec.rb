@@ -149,4 +149,33 @@ RSpec.describe RubyLsp::Mongoid::Hover do
       expect(response.contents.value).to include("embedded_in: [Post]")
     end
   end
+
+  describe "field hover with signature" do
+    it "shows field options in hover" do
+      source = <<~RUBY
+        class User
+          field :age, type: Integer
+        end
+      RUBY
+
+      response = hover_on_source(source, { line: 1, character: 9 })
+
+      expect(response).not_to be_nil
+      expect(response.contents.value).to include("type: Integer")
+    end
+
+    it "shows field with multiple options" do
+      source = <<~RUBY
+        class User
+          field :active, type: Boolean, default: false
+        end
+      RUBY
+
+      response = hover_on_source(source, { line: 1, character: 9 })
+
+      expect(response).not_to be_nil
+      expect(response.contents.value).to include("type: Boolean")
+      expect(response.contents.value).to include("default: false")
+    end
+  end
 end
