@@ -137,7 +137,16 @@ module RubyLsp
 
         loc = call_node.location
 
-        add_singleton_method(name.to_s, loc, owner)
+        # Extract lambda parameters if present
+        lambda_node = extract_lambda_node(call_node)
+        signatures = if lambda_node
+          params = extract_lambda_parameters(lambda_node)
+          [RubyIndexer::Entry::Signature.new(params)]
+        else
+          [RubyIndexer::Entry::Signature.new([])]
+        end
+
+        add_singleton_method_with_signatures(name.to_s, loc, owner, signatures)
       end
 
       def extract_name(call_node)
@@ -228,20 +237,28 @@ module RubyLsp
       end
 
       def add_builder_methods(name, location)
-        builder_signatures = [RubyIndexer::Entry::Signature.new([])]
+        builder_signatures = [
+          RubyIndexer::Entry::Signature.new([
+            RubyIndexer::Entry::OptionalParameter.new(name: :attributes),
+          ]),
+        ]
         @listener.add_method("build_#{name}", location, builder_signatures)
         @listener.add_method("create_#{name}", location, builder_signatures)
         @listener.add_method("create_#{name}!", location, builder_signatures)
       end
 
       def add_singleton_method(name, node_location, owner)
+        signatures = [RubyIndexer::Entry::Signature.new([])]
+        add_singleton_method_with_signatures(name, node_location, owner, signatures)
+      end
+
+      def add_singleton_method_with_signatures(name, node_location, owner, signatures)
         index = @listener.instance_variable_get(:@index)
         code_units_cache = @listener.instance_variable_get(:@code_units_cache)
         uri = @listener.instance_variable_get(:@uri)
 
         location = RubyIndexer::Location.from_prism_location(node_location, code_units_cache)
         singleton = index.existing_or_new_singleton_class(owner.name)
-        signatures = [RubyIndexer::Entry::Signature.new([])]
 
         index.add(RubyIndexer::Entry::Method.new(
           name,
@@ -253,6 +270,69 @@ module RubyLsp
           :public,
           singleton,
         ))
+      end
+
+      def extract_lambda_node(call_node)
+        arguments = call_node.arguments&.arguments
+        return unless arguments
+
+        arguments.find { |arg| arg.is_a?(Prism::LambdaNode) }
+      end
+
+      def extract_lambda_parameters(lambda_node)
+        return [] unless lambda_node.is_a?(Prism::LambdaNode)
+
+        params_node = lambda_node.parameters
+        return [] unless params_node
+
+        # Lambda parameters can be either BlockParametersNode or NumberedParametersNode
+        case params_node
+        when Prism::BlockParametersNode
+          extract_parameters_from_block_params(params_node)
+        else
+          []
+        end
+      end
+
+      def extract_parameters_from_block_params(block_params_node)
+        params = []
+
+        # BlockParametersNode has a `parameters` method that returns ParametersNode
+        inner_params = block_params_node.parameters
+        return params unless inner_params
+
+        # Required parameters
+        inner_params.requireds&.each do |param|
+          next unless param.respond_to?(:name)
+
+          params << RubyIndexer::Entry::RequiredParameter.new(name: param.name)
+        end
+
+        # Optional parameters
+        inner_params.optionals&.each do |param|
+          next unless param.respond_to?(:name)
+
+          params << RubyIndexer::Entry::OptionalParameter.new(name: param.name)
+        end
+
+        # Rest parameter
+        if inner_params.rest && inner_params.rest.respond_to?(:name)
+          name = inner_params.rest.name || :args
+          params << RubyIndexer::Entry::RestParameter.new(name: name)
+        end
+
+        # Keyword parameters
+        inner_params.keywords&.each do |param|
+          next unless param.respond_to?(:name)
+
+          if param.respond_to?(:value) && param.value
+            params << RubyIndexer::Entry::OptionalKeywordParameter.new(name: param.name)
+          else
+            params << RubyIndexer::Entry::KeywordParameter.new(name: param.name)
+          end
+        end
+
+        params
       end
 
       def singularize(name)

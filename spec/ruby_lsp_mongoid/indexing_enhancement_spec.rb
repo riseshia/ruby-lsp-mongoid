@@ -624,4 +624,158 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
       assert_singleton_method_defined("published", "Post::<Class:Post>", 4)
     end
   end
+
+  describe "method signatures" do
+    def get_method_signatures(method_name, class_name)
+      entries = index.resolve_method(method_name, class_name)
+      return nil unless entries&.any?
+
+      entries.first.signatures
+    end
+
+    describe "field DSL signatures" do
+      it "registers reader with empty signature" do
+        index.index_single(indexable_path, <<~RUBY)
+          class User
+            field :name
+          end
+        RUBY
+
+        signatures = get_method_signatures("name", "User")
+        expect(signatures).not_to be_nil
+        expect(signatures.first.parameters).to be_empty
+      end
+
+      it "registers writer with required value parameter" do
+        index.index_single(indexable_path, <<~RUBY)
+          class User
+            field :name
+          end
+        RUBY
+
+        signatures = get_method_signatures("name=", "User")
+        expect(signatures).not_to be_nil
+        expect(signatures.first.parameters.size).to eq(1)
+        expect(signatures.first.parameters.first).to be_a(RubyIndexer::Entry::RequiredParameter)
+        expect(signatures.first.parameters.first.name).to eq(:value)
+      end
+    end
+
+    describe "association DSL signatures" do
+      it "registers has_many reader with empty signature" do
+        index.index_single(indexable_path, <<~RUBY)
+          class User
+            has_many :posts
+          end
+        RUBY
+
+        signatures = get_method_signatures("posts", "User")
+        expect(signatures.first.parameters).to be_empty
+      end
+
+      it "registers has_many writer with required parameter" do
+        index.index_single(indexable_path, <<~RUBY)
+          class User
+            has_many :posts
+          end
+        RUBY
+
+        signatures = get_method_signatures("posts=", "User")
+        expect(signatures.first.parameters.size).to eq(1)
+        expect(signatures.first.parameters.first).to be_a(RubyIndexer::Entry::RequiredParameter)
+      end
+
+      it "registers builder methods with optional attributes parameter" do
+        index.index_single(indexable_path, <<~RUBY)
+          class User
+            has_one :profile
+          end
+        RUBY
+
+        %w[build_profile create_profile create_profile!].each do |method_name|
+          signatures = get_method_signatures(method_name, "User")
+          expect(signatures).not_to be_nil, "Expected #{method_name} to have signatures"
+          expect(signatures.first.parameters.size).to eq(1)
+          expect(signatures.first.parameters.first).to be_a(RubyIndexer::Entry::OptionalParameter)
+          expect(signatures.first.parameters.first.name).to eq(:attributes)
+        end
+      end
+    end
+
+    describe "scope DSL signatures" do
+      it "registers scope without parameters when lambda has no params" do
+        index.index_single(indexable_path, <<~RUBY)
+          class Post
+            scope :published, -> { where(published: true) }
+          end
+        RUBY
+
+        entries = index.resolve_method("published", "Post::<Class:Post>")
+        expect(entries).not_to be_nil
+        expect(entries.first.signatures.first.parameters).to be_empty
+      end
+
+      it "registers scope with required parameters from lambda" do
+        index.index_single(indexable_path, <<~RUBY)
+          class Post
+            scope :by_author, ->(author_id) { where(author_id: author_id) }
+          end
+        RUBY
+
+        entries = index.resolve_method("by_author", "Post::<Class:Post>")
+        expect(entries).not_to be_nil
+        params = entries.first.signatures.first.parameters
+        expect(params.size).to eq(1)
+        expect(params.first).to be_a(RubyIndexer::Entry::RequiredParameter)
+        expect(params.first.name).to eq(:author_id)
+      end
+
+      it "registers scope with optional parameters from lambda" do
+        index.index_single(indexable_path, <<~RUBY)
+          class Post
+            scope :recent, ->(limit = 10) { order(created_at: :desc).limit(limit) }
+          end
+        RUBY
+
+        entries = index.resolve_method("recent", "Post::<Class:Post>")
+        expect(entries).not_to be_nil
+        params = entries.first.signatures.first.parameters
+        expect(params.size).to eq(1)
+        expect(params.first).to be_a(RubyIndexer::Entry::OptionalParameter)
+        expect(params.first.name).to eq(:limit)
+      end
+
+      it "registers scope with multiple parameters from lambda" do
+        index.index_single(indexable_path, <<~RUBY)
+          class Post
+            scope :between_dates, ->(start_date, end_date) { where(created_at: start_date..end_date) }
+          end
+        RUBY
+
+        entries = index.resolve_method("between_dates", "Post::<Class:Post>")
+        expect(entries).not_to be_nil
+        params = entries.first.signatures.first.parameters
+        expect(params.size).to eq(2)
+        expect(params[0].name).to eq(:start_date)
+        expect(params[1].name).to eq(:end_date)
+      end
+
+      it "registers scope with keyword parameters from lambda" do
+        index.index_single(indexable_path, <<~RUBY)
+          class Post
+            scope :filtered, ->(status:, category: nil) { where(status: status, category: category) }
+          end
+        RUBY
+
+        entries = index.resolve_method("filtered", "Post::<Class:Post>")
+        expect(entries).not_to be_nil
+        params = entries.first.signatures.first.parameters
+        expect(params.size).to eq(2)
+        expect(params[0]).to be_a(RubyIndexer::Entry::KeywordParameter)
+        expect(params[0].name).to eq(:status)
+        expect(params[1]).to be_a(RubyIndexer::Entry::OptionalKeywordParameter)
+        expect(params[1].name).to eq(:category)
+      end
+    end
+  end
 end
