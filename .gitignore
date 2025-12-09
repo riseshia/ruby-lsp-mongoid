@@ -9,7 +9,5 @@
 
 Gemfile.lock
 
-.kiro/
-
 # rspec failure tracking
 .rspec_status
