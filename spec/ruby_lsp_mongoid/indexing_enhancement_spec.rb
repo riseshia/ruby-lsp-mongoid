@@ -377,9 +377,10 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
   end
 
   describe "_id and id auto-indexing" do
-    it "indexes _id and id when field DSL is used" do
+    it "indexes _id and id when including Mongoid::Document" do
       index.index_single(indexable_path, <<~RUBY)
         class User
+          include Mongoid::Document
           field :name
         end
       RUBY
@@ -393,13 +394,14 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
     it "indexes _id and id only once when multiple DSL calls exist" do
       index.index_single(indexable_path, <<~RUBY)
         class User
+          include Mongoid::Document
           field :name
           field :email
           has_many :posts
         end
       RUBY
 
-      # All _id/id methods should point to line 2 (first DSL)
+      # All _id/id methods should point to line 2 (include statement)
       entries = index.resolve_method("_id", "User")
       expect(entries.length).to eq(1)
       expect(entries.first.location.start_line).to eq(2)
@@ -412,6 +414,7 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
     it "indexes _id and id for association-only model" do
       index.index_single(indexable_path, <<~RUBY)
         class User
+          include Mongoid::Document
           has_many :posts
         end
       RUBY
@@ -425,6 +428,7 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
     it "indexes _id and id for scope-only model" do
       index.index_single(indexable_path, <<~RUBY)
         class User
+          include Mongoid::Document
           scope :active, -> { where(active: true) }
         end
       RUBY
@@ -438,21 +442,186 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
     it "indexes _id and id separately for multiple classes in same file" do
       index.index_single(indexable_path, <<~RUBY)
         class User
+          include Mongoid::Document
           field :name
         end
 
         class Post
+          include Mongoid::Document
           field :title
         end
       RUBY
 
-      # User has _id/id at line 2
+      # User has _id/id at line 2 (include statement)
       assert_method_defined("_id", "User", 2)
       assert_method_defined("id", "User", 2)
 
-      # Post has its own _id/id at line 6
-      assert_method_defined("_id", "Post", 6)
-      assert_method_defined("id", "Post", 6)
+      # Post has its own _id/id at line 7 (include statement)
+      assert_method_defined("_id", "Post", 7)
+      assert_method_defined("id", "Post", 7)
+    end
+  end
+
+  describe "Mongoid::Document inclusion" do
+    def assert_singleton_method_defined(method_name, class_name, line)
+      entries = index.resolve_method(method_name, class_name)
+      expect(entries).not_to be_nil, "Expected singleton method '#{method_name}' to be defined on '#{class_name}'"
+      expect(entries.first).to be_a(RubyIndexer::Entry::Method)
+      expect(entries.first.location.start_line).to eq(line)
+    end
+
+    it "indexes core instance methods when including Mongoid::Document" do
+      index.index_single(indexable_path, <<~RUBY)
+        class User
+          include Mongoid::Document
+        end
+      RUBY
+
+      # Persistence methods
+      assert_method_defined("save", "User", 2)
+      assert_method_defined("save!", "User", 2)
+      assert_method_defined("update", "User", 2)
+      assert_method_defined("update!", "User", 2)
+      assert_method_defined("destroy", "User", 2)
+      assert_method_defined("delete", "User", 2)
+      assert_method_defined("upsert", "User", 2)
+      assert_method_defined("reload", "User", 2)
+
+      # State methods
+      assert_method_defined("new_record?", "User", 2)
+      assert_method_defined("persisted?", "User", 2)
+      assert_method_defined("valid?", "User", 2)
+      assert_method_defined("changed?", "User", 2)
+
+      # Attribute methods
+      assert_method_defined("attributes", "User", 2)
+      assert_method_defined("attributes=", "User", 2)
+      assert_method_defined("assign_attributes", "User", 2)
+      assert_method_defined("read_attribute", "User", 2)
+      assert_method_defined("write_attribute", "User", 2)
+      assert_method_defined("changes", "User", 2)
+      assert_method_defined("errors", "User", 2)
+
+      # Identity methods
+      assert_method_defined("to_key", "User", 2)
+      assert_method_defined("to_param", "User", 2)
+      assert_method_defined("model_name", "User", 2)
+      assert_method_defined("inspect", "User", 2)
+    end
+
+    it "indexes core class methods when including Mongoid::Document" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Post
+          include Mongoid::Document
+        end
+      RUBY
+
+      # Query methods
+      assert_singleton_method_defined("all", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("where", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("find", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("find_by", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("find_by!", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("first", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("last", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("count", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("exists?", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("distinct", "Post::<Class:Post>", 2)
+
+      # Creation methods
+      assert_singleton_method_defined("create", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("create!", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("new", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("build", "Post::<Class:Post>", 2)
+
+      # Modification methods
+      assert_singleton_method_defined("update_all", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("delete_all", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("destroy_all", "Post::<Class:Post>", 2)
+
+      # Database methods
+      assert_singleton_method_defined("collection", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("database", "Post::<Class:Post>", 2)
+    end
+
+    it "indexes both core methods and DSL methods together" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Article
+          include Mongoid::Document
+          field :title
+          has_many :comments
+        end
+      RUBY
+
+      # Core instance methods from include
+      assert_method_defined("save", "Article", 2)
+      assert_method_defined("valid?", "Article", 2)
+
+      # DSL field methods
+      assert_method_defined("title", "Article", 3)
+      assert_method_defined("title=", "Article", 3)
+
+      # DSL association methods
+      assert_method_defined("comments", "Article", 4)
+      assert_method_defined("comments=", "Article", 4)
+
+      # Core class methods from include
+      assert_singleton_method_defined("all", "Article::<Class:Article>", 2)
+      assert_singleton_method_defined("create", "Article::<Class:Article>", 2)
+    end
+
+    it "does not index core methods for non-Mongoid includes" do
+      index.index_single(indexable_path, <<~RUBY)
+        class MyClass
+          include SomeOtherModule
+        end
+      RUBY
+
+      entries = index.resolve_method("save", "MyClass")
+      expect(entries).to be_nil
+    end
+
+    it "indexes core methods when including ApplicationDocument" do
+      index.index_single(indexable_path, <<~RUBY)
+        class User
+          include ApplicationDocument
+        end
+      RUBY
+
+      # Core instance methods
+      assert_method_defined("save", "User", 2)
+      assert_method_defined("valid?", "User", 2)
+      assert_method_defined("reload", "User", 2)
+
+      # Core class methods
+      assert_singleton_method_defined("all", "User::<Class:User>", 2)
+      assert_singleton_method_defined("where", "User::<Class:User>", 2)
+      assert_singleton_method_defined("create", "User::<Class:User>", 2)
+    end
+
+    it "indexes core methods for ApplicationDocument with DSL methods" do
+      index.index_single(indexable_path, <<~RUBY)
+        class Post
+          include ApplicationDocument
+          field :title
+          scope :published, -> { where(published: true) }
+        end
+      RUBY
+
+      # Core instance methods from ApplicationDocument
+      assert_method_defined("save", "Post", 2)
+      assert_method_defined("update", "Post", 2)
+
+      # DSL field methods
+      assert_method_defined("title", "Post", 3)
+      assert_method_defined("title=", "Post", 3)
+
+      # Core class methods from ApplicationDocument
+      assert_singleton_method_defined("find", "Post::<Class:Post>", 2)
+      assert_singleton_method_defined("create", "Post::<Class:Post>", 2)
+
+      # DSL scope methods
+      assert_singleton_method_defined("published", "Post::<Class:Post>", 4)
     end
   end
 end

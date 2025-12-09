@@ -5,7 +5,6 @@ module RubyLsp
     class IndexingEnhancement < RubyIndexer::Enhancement
       def initialize(listener)
         super
-        @id_indexed_owners = Set.new
       end
 
       def on_call_node_enter(call_node)
@@ -13,6 +12,8 @@ module RubyLsp
         return unless owner
 
         case call_node.name
+        when :include
+          handle_include(call_node)
         when :field
           handle_field(call_node)
         when :embeds_many, :embedded_in
@@ -30,14 +31,64 @@ module RubyLsp
 
       private
 
+      # Core instance methods automatically added by Mongoid::Document
+      CORE_INSTANCE_METHODS = %w[
+        save save! update update! destroy delete upsert reload
+        new_record? persisted? valid? changed?
+        attributes attributes= assign_attributes read_attribute write_attribute changes errors
+        to_key to_param model_name inspect
+      ].freeze
+
+      # Class methods automatically added by Mongoid::Document
+      CORE_CLASS_METHODS = %w[
+        all where find find_by find_by! first last count exists? distinct
+        create create! new build
+        update_all delete_all destroy_all
+        collection database
+      ].freeze
+
+      def handle_include(call_node)
+        arguments = call_node.arguments&.arguments
+        return unless arguments
+
+        # Check if including Mongoid::Document or ApplicationDocument
+        first_arg = arguments.first
+        module_name = case first_arg
+                      when Prism::ConstantReadNode
+                        first_arg.name.to_s
+                      when Prism::ConstantPathNode
+                        first_arg.full_name
+                      end
+
+        # Support both Mongoid::Document and ApplicationDocument (common Rails pattern)
+        return unless module_name == "Mongoid::Document" || module_name == "ApplicationDocument"
+
+        owner = @listener.current_owner
+        return unless owner
+
+        loc = call_node.location
+
+        # Add _id and id accessor methods (always present in Mongoid documents)
+        add_accessor_methods("_id", loc)
+        add_accessor_methods("id", loc)
+
+        # Add core instance methods
+        CORE_INSTANCE_METHODS.each do |method_name|
+          add_core_method(method_name, loc)
+        end
+
+        # Add core class methods
+        CORE_CLASS_METHODS.each do |method_name|
+          add_singleton_method(method_name, loc, owner)
+        end
+      end
+
       def handle_field(call_node)
         name = extract_name(call_node)
         return unless name
 
         loc = call_node.location
         comment = build_field_options_comment(call_node)
-
-        ensure_id_field_indexed(loc)
 
         add_accessor_methods(name, loc, comments: comment)
 
@@ -51,7 +102,6 @@ module RubyLsp
         return unless name
 
         loc = call_node.location
-        ensure_id_field_indexed(loc)
 
         add_accessor_methods(name, loc)
       end
@@ -61,7 +111,6 @@ module RubyLsp
         return unless name
 
         loc = call_node.location
-        ensure_id_field_indexed(loc)
 
         add_accessor_methods(name, loc)
 
@@ -74,7 +123,6 @@ module RubyLsp
         return unless name
 
         loc = call_node.location
-        ensure_id_field_indexed(loc)
 
         add_accessor_methods(name, loc)
         add_builder_methods(name, loc)
@@ -88,7 +136,6 @@ module RubyLsp
         return unless owner
 
         loc = call_node.location
-        ensure_id_field_indexed(loc)
 
         add_singleton_method(name.to_s, loc, owner)
       end
@@ -175,6 +222,11 @@ module RubyLsp
         @listener.add_method("#{name}=", location, writer_signatures, comments: comments)
       end
 
+      def add_core_method(name, location)
+        signatures = [RubyIndexer::Entry::Signature.new([])]
+        @listener.add_method(name.to_s, location, signatures)
+      end
+
       def add_builder_methods(name, location)
         builder_signatures = [RubyIndexer::Entry::Signature.new([])]
         @listener.add_method("build_#{name}", location, builder_signatures)
@@ -212,18 +264,6 @@ module RubyLsp
         else
           name_str
         end
-      end
-
-      def ensure_id_field_indexed(location)
-        owner = @listener.current_owner
-        return unless owner
-        return if @id_indexed_owners.include?(owner.name)
-
-        @id_indexed_owners.add(owner.name)
-
-        # Add _id and id (alias) accessor methods
-        add_accessor_methods("_id", location)
-        add_accessor_methods("id", location)
       end
     end
   end
