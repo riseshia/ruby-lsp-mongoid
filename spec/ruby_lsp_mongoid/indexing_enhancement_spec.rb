@@ -377,9 +377,10 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
   end
 
   describe "_id and id auto-indexing" do
-    it "indexes _id and id when field DSL is used" do
+    it "indexes _id and id when including Mongoid::Document" do
       index.index_single(indexable_path, <<~RUBY)
         class User
+          include Mongoid::Document
           field :name
         end
       RUBY
@@ -393,13 +394,14 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
     it "indexes _id and id only once when multiple DSL calls exist" do
       index.index_single(indexable_path, <<~RUBY)
         class User
+          include Mongoid::Document
           field :name
           field :email
           has_many :posts
         end
       RUBY
 
-      # All _id/id methods should point to line 2 (first DSL)
+      # All _id/id methods should point to line 2 (include statement)
       entries = index.resolve_method("_id", "User")
       expect(entries.length).to eq(1)
       expect(entries.first.location.start_line).to eq(2)
@@ -412,6 +414,7 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
     it "indexes _id and id for association-only model" do
       index.index_single(indexable_path, <<~RUBY)
         class User
+          include Mongoid::Document
           has_many :posts
         end
       RUBY
@@ -425,6 +428,7 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
     it "indexes _id and id for scope-only model" do
       index.index_single(indexable_path, <<~RUBY)
         class User
+          include Mongoid::Document
           scope :active, -> { where(active: true) }
         end
       RUBY
@@ -438,21 +442,23 @@ RSpec.describe RubyLsp::Mongoid::IndexingEnhancement do
     it "indexes _id and id separately for multiple classes in same file" do
       index.index_single(indexable_path, <<~RUBY)
         class User
+          include Mongoid::Document
           field :name
         end
 
         class Post
+          include Mongoid::Document
           field :title
         end
       RUBY
 
-      # User has _id/id at line 2
+      # User has _id/id at line 2 (include statement)
       assert_method_defined("_id", "User", 2)
       assert_method_defined("id", "User", 2)
 
-      # Post has its own _id/id at line 6
-      assert_method_defined("_id", "Post", 6)
-      assert_method_defined("id", "Post", 6)
+      # Post has its own _id/id at line 7 (include statement)
+      assert_method_defined("_id", "Post", 7)
+      assert_method_defined("id", "Post", 7)
     end
   end
 
