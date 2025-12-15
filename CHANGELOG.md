@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.1.2] - 2025-12-15
+
 ### Added
 
 - Auto-index core instance methods when including `Mongoid::Document` or `ApplicationDocument`:
