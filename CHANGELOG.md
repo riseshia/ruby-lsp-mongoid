@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.1.3] - 2026-01-29
+
 ### Fixed
 
 - Fix "can't add a new key into hash during iteration" error caused by concurrent hash modification when background signature update thread iterates while ruby-lsp modifies the index
