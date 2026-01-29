@@ -254,22 +254,14 @@ module RubyLsp
 
       def add_singleton_method_with_signatures(name, node_location, owner, signatures)
         index = @listener.instance_variable_get(:@index)
-        code_units_cache = @listener.instance_variable_get(:@code_units_cache)
-        uri = @listener.instance_variable_get(:@uri)
+        owner_stack = @listener.instance_variable_get(:@owner_stack)
 
-        location = RubyIndexer::Location.from_prism_location(node_location, code_units_cache)
         singleton = index.existing_or_new_singleton_class(owner.name)
+        owner_stack << singleton
 
-        index.add(RubyIndexer::Entry::Method.new(
-          name,
-          uri,
-          location,
-          location,
-          "",
-          signatures,
-          :public,
-          singleton,
-        ))
+        @listener.add_method(name, node_location, signatures)
+
+        owner_stack.pop
       end
 
       def extract_lambda_node(call_node)

@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+### Fixed
+
+- Fix "can't add a new key into hash during iteration" error caused by concurrent hash modification when background signature update thread iterates while ruby-lsp modifies the index
+- Fix compatibility with ruby-lsp 0.26.5+ by using `@listener.add_method` instead of directly calling `Entry::Method.new`
+
 ## [0.1.2] - 2025-12-15
 
 ### Added

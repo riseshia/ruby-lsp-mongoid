@@ -89,7 +89,10 @@ module RubyLsp
 
         # Find all classes that have this method registered by our addon
         # We look for methods that were registered with empty signatures
-        index.instance_variable_get(:@entries).each do |_name, entries|
+        # Use dup to avoid "can't add a new key into hash during iteration" error
+        # when ruby-lsp modifies the index concurrently
+        entries_snapshot = index.instance_variable_get(:@entries).dup
+        entries_snapshot.each do |_name, entries|
           entries.each do |entry|
             next unless entry.is_a?(RubyIndexer::Entry::Method)
             next unless entry.name == method_name
@@ -107,7 +110,9 @@ module RubyLsp
       def update_singleton_method_signatures_for_mongoid_models(index, method_name, new_signatures)
         updated = 0
 
-        index.instance_variable_get(:@entries).each do |_name, entries|
+        # Use dup to avoid "can't add a new key into hash during iteration" error
+        entries_snapshot = index.instance_variable_get(:@entries).dup
+        entries_snapshot.each do |_name, entries|
           entries.each do |entry|
             next unless entry.is_a?(RubyIndexer::Entry::Method)
             next unless entry.name == method_name
